@@ -21,17 +21,6 @@ table_data = {"Номер канала": [x+1 for x in range(channels_total)],
 
 busy_table_data = {"Модуль/канал": ["" for x in range(channels_total)]}
 
-place = 0
-for i in range(len(init_data["modules"])):
-    for j in range(init_data["modules"][i]):
-        for k in range(init_data["channels"][i]):
-            table_data["Модуль"][place] = i+j+1
-            table_data["Номер канала в модуле"][place] = k+1
-
-            busy_table_data["Модуль/канал"][place] = f"М{i+j+1}/К{k+1}"
-
-            place += 1
-
 ticks = int(fmax / min(f)) # кол-во тактов синхронизации
 
 for i in range(ticks):
@@ -40,9 +29,14 @@ for i in range(ticks):
 
 # просто смерть, а не цикл. смотреть на свой страх и риск
 big_counter = 0
-for i in range(len(init_data["modules"])): # идем по типам модулей
-    for j in range(init_data["modules"][i]): # идем по каждому модулю каждого типа
-        for k in range(init_data["channels"][i]): # идем по каждому каналу каждого модуля
+for i in range(len(init_data["modules"])):
+    for j in range(init_data["modules"][i]):
+        for k in range(init_data["channels"][i]):
+            table_data["Модуль"][big_counter] = i+j+1
+            table_data["Номер канала в модуле"][big_counter] = k+1
+
+            busy_table_data["Модуль/канал"][big_counter] = f"М{i+j+1}/К{k+1}"
+
             counter = 0
             reset = init_data["channels"][i]
             for m in range(ticks): # идем по каждому такту
@@ -51,6 +45,7 @@ for i in range(len(init_data["modules"])): # идем по типам модул
                     counter = 0
                 counter += 1
             big_counter += 1
+
 
 table = pd.DataFrame(table_data)
 busy_table = pd.DataFrame(busy_table_data)
