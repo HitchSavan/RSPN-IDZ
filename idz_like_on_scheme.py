@@ -36,7 +36,7 @@ f = []
 for signal in init_data["signals"]:
     for i in range(signal["quantity"]):
         f.append(fmax / signal["f"])
-T = [fmax / x for x in f] # периоды опроса каналов
+T = [int(fmax / x) for x in f] # периоды опроса каналов
 
 T.sort()
 f.sort()
@@ -74,10 +74,10 @@ while (True):
         
     if (l + deltal) < ticks:
         if (possibility_matrix[0]["TF"][l] == 0):
-
-            possibility_matrix[0]["TF"][l] = 1 # назначение j-сигнала на l-такт модуля
-            ##### штраф
-            l += deltal
+            for i in range(int(ticks / deltal)):
+                possibility_matrix[0]["TF"][l] = 1 # назначение j-сигнала на l-такт модуля
+                ##### штраф
+                l += deltal
        
             possibility_matrix[0]["lfree"] -= ticks / deltal
             possibility_matrix[0]["kfree"] -= 1
@@ -142,6 +142,6 @@ for module in init_data["modules"]: # идем по типам модулей
 
 table = pd.DataFrame(table_data)
 busy_table = pd.DataFrame(busy_table_data)
-print(table)
-print(busy_table)
+# print(table)
+# print(busy_table)
 
