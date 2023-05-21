@@ -1,5 +1,6 @@
 import pandas as pd
 import json
+from operator import itemgetter
 
 # Heap Sort for possibility matrix
 def heapify(arr, n, i):
@@ -7,7 +8,7 @@ def heapify(arr, n, i):
     l = 2 * i + 1  # left = 2*i + 1
     r = 2 * i + 2  # right = 2*i + 2
 
-    if l < n and arr[i]["V"] > arr[l]["V"]:
+    if l < n and arr[smallest]["V"] > arr[l]["V"]:
         smallest = l
     if r < n and arr[smallest]["V"] > arr[r]["V"]:
         smallest = r
@@ -68,6 +69,7 @@ for module in init_data["modules"]:
     channels_total += module["channels"] * module["quantity"]
 
 heapSort(possibility_matrix) # сортировка МПВ
+#possibility_matrix.sort(key=itemgetter('V', 'kfree'), reverse=True)
 
 # создание таблицы расписания
 
@@ -75,7 +77,9 @@ table_data = {"Номер канала": [x+1 for x in range(channels_total)],
               "Номер канала в модуле": [0 for x in range(channels_total)],
               "Модуль": [0 for x in range(channels_total)],
               "Частота сигнала на канал": [fmax for x in range(channels_total)],
-              "Штраф": [0 for x in range(channels_total)]
+              "Номер сигнала": [-1 for x in range(channels_total)],
+              "Штраф 1": [0 for x in range(channels_total)],
+              "Штраф 2": [0 for x in range(channels_total)]
               }
 
 for i in range(ticks):
@@ -109,14 +113,14 @@ l = 0
 j = 0
 newCycleFlag = True
 while (True):
-    if(newCycleFlag):
+    if (newCycleFlag):
         n = 0
     # deltal = T[j] # ??
 
     print(f'l={l}, deltal={deltal} ', sep=', ')
         
     if (l + deltal) <= T[j]:
-        if (possibility_matrix[0]["TF"][l] == 0):
+        if (possibility_matrix[0]["TF"][l] == 0 and possibility_matrix[0]["kfree"] != 0):
             for i in range(int(ticks / T[j])):
                 position = l + i * T[j]
                 print(position, end=" ")
@@ -125,19 +129,42 @@ while (True):
                 table.loc[(table['Номер канала в модуле'] == (possibility_matrix[0]["ktotal"] - possibility_matrix[0]["kfree"] + 1)) 
                           & (table['Модуль'] == (possibility_matrix[0]["num"] + 1)), [f'Такт {position + 1}']] = 1
 
+            table.loc[(table['Номер канала в модуле'] == (possibility_matrix[0]["ktotal"] - possibility_matrix[0]["kfree"] + 1)) 
+                      & (table['Модуль'] == (possibility_matrix[0]["num"] + 1)), [f'Номер сигнала']] = j
+
+            p1 = [0 for x in T]
+            p2 = [0 for x in T]
+            for i in range(ticks):
+                if possibility_matrix[0]["TF"][i] == 1:
+                    if table.loc[(table['Номер канала в модуле'] == (possibility_matrix[0]["ktotal"] - possibility_matrix[0]["kfree"] + 1)) 
+                                 & (table['Модуль'] == (possibility_matrix[0]["num"] + 1)), [f'Такт {i + 1}']].iat[0, 0] == 1:
+                        p1[i] += 1
+                        p2[i] += min(T)/T[j]
+            
+            P1 = sum(p1) / (ticks * len(T))
+            P2 = sum(p2) / (ticks * len(T))
+
+            table.loc[(table['Номер канала в модуле'] == (possibility_matrix[0]["ktotal"] - possibility_matrix[0]["kfree"] + 1)) 
+                    & (table['Модуль'] == (possibility_matrix[0]["num"] + 1)), [f'Штраф 1']] = P1
+            table.loc[(table['Номер канала в модуле'] == (possibility_matrix[0]["ktotal"] - possibility_matrix[0]["kfree"] + 1)) 
+                    & (table['Модуль'] == (possibility_matrix[0]["num"] + 1)), [f'Штраф 2']] = P2
+
             l += deltal
 
             print(f'{possibility_matrix[0]["TF"]}, Vb={possibility_matrix[0]["V"]}', end=", ")
+
+            print(f'сигнал {j+1} записан в модуль {possibility_matrix[0]["num"] + 1} канал {possibility_matrix[0]["ktotal"] - possibility_matrix[0]["kfree"] + 1}')
         
             possibility_matrix[0]["lfree"] -= ticks / T[j]
             possibility_matrix[0]["kfree"] -= 1
             possibility_matrix[0]["V"] = possibility_matrix[0]["lfree"] / possibility_matrix[0]["ktotal"]
             print(f'Va={possibility_matrix[0]["V"]}')
             heapSort(possibility_matrix)
+            #possibility_matrix.sort(key=itemgetter('V', 'kfree'), reverse=True)
 
             j += 1
 
-            if j == len(f)-1:
+            if j == len(f):
                 break
             newCycleFlag = True
         else:
@@ -145,7 +172,7 @@ while (True):
             newCycleFlag = False # ???
     else:
         if n == 1:
-            print(f"Не вышло составить расписание для сигнала {j}")
+            print(f"Не вышло составить расписание для сигнала {j+1}")
             break
         else:
             l = 0
