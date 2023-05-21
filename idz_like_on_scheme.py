@@ -111,26 +111,28 @@ newCycleFlag = True
 while (True):
     if(newCycleFlag):
         n = 0
-    deltal = T[j]
+    # deltal = T[j] # ??
 
     print(f'l={l}, deltal={deltal} ', sep=', ')
         
-    if (l + deltal) <= ticks:
+    if (l + deltal) <= T[j]:
         if (possibility_matrix[0]["TF"][l] == 0):
-            for i in range(int(ticks / deltal)):
-                possibility_matrix[0]["TF"][l] = 1 # назначение j-сигнала на l-такт модуля
+            for i in range(int(ticks / T[j])):
+                position = l + i * T[j]
+                print(position, end=" ")
+                possibility_matrix[0]["TF"][position] = 1 # назначение j-сигнала на l-такт модуля
 
                 table.loc[(table['Номер канала в модуле'] == (possibility_matrix[0]["ktotal"] - possibility_matrix[0]["kfree"] + 1)) 
-                          & (table['Модуль'] == (possibility_matrix[0]["num"] + 1)), [f'Такт {l + 1}']] = 1
+                          & (table['Модуль'] == (possibility_matrix[0]["num"] + 1)), [f'Такт {position + 1}']] = 1
 
-                ##### штраф
-                l += deltal
+            l += deltal
 
-            print(f'{possibility_matrix[0]["TF"]}, V={possibility_matrix[0]["V"]}')
+            print(f'{possibility_matrix[0]["TF"]}, Vb={possibility_matrix[0]["V"]}', end=", ")
         
-            possibility_matrix[0]["lfree"] -= ticks / deltal
+            possibility_matrix[0]["lfree"] -= ticks / T[j]
             possibility_matrix[0]["kfree"] -= 1
             possibility_matrix[0]["V"] = possibility_matrix[0]["lfree"] / possibility_matrix[0]["ktotal"]
+            print(f'Va={possibility_matrix[0]["V"]}')
             heapSort(possibility_matrix)
 
             j += 1
@@ -152,10 +154,15 @@ while (True):
 
 print(table)
 
-
-
-
-
+table.to_excel("output.xlsx")
+'''
+writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
+table.to_excel(writer, 'Sheet1', index=False)
+wb = writer.book
+ws = writer.sheets['Sheet1']
+ws.add_table('G2:V32', {'style': 'Table Style Medium 20'})
+writer.save()
+'''
 '''
 
 busy_table_data = {"Модуль/канал": ["" for x in range(channels_total)]}
