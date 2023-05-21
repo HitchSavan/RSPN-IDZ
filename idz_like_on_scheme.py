@@ -45,23 +45,64 @@ f.reverse()
 print(f'Частоты сигналов: {f}\nПериоды: {T}')
 
 ticks = int(fmax / min(f)) # кол-во тактов синхронизации
+print(f'Количество тактов в кадре эксперимента: {ticks}')
+
+# формирование матрицы потенциальных возможностей (МПВ)
 
 possibility_matrix = []
 
+module_num = 0
 channels_total = 0
-for module in init_data["modules"]: # формирование матрицы потенциальных возможностей (МПВ)
+for module in init_data["modules"]: 
     for i in range(module["quantity"]):
         possibility_matrix.append({
-                "V": ticks / module["channels"],
-                "lfree": ticks,
-                "kfree": module["channels"],
-                "ktotal": module["channels"],
-                "TF": [0 for x in range(ticks)], # вектор занятости
-                "Ra": [x for x in range(module["channels"])] # порядок каналов
+            "num": module_num,
+            "V": ticks / module["channels"],
+            "lfree": ticks,
+            "kfree": module["channels"],
+            "ktotal": module["channels"],
+            "TF": [0 for x in range(ticks)], # вектор занятости
+            "Ra": [x for x in range(module["channels"])] # порядок каналов
         })
+        module_num += 1
     channels_total += module["channels"] * module["quantity"]
 
 heapSort(possibility_matrix) # сортировка МПВ
+
+# создание таблицы расписания
+
+table_data = {"Номер канала": [x+1 for x in range(channels_total)],
+              "Номер канала в модуле": [0 for x in range(channels_total)],
+              "Модуль": [0 for x in range(channels_total)],
+              "Частота сигнала на канал": [fmax for x in range(channels_total)],
+              "Штраф": [0 for x in range(channels_total)]
+              }
+
+for i in range(ticks):
+    table_data[f'Такт {i+1}'] = [0 for x in range(channels_total)]
+
+# просто смерть, а не цикл. смотреть на свой страх и риск
+big_counter = 0
+i = 0
+for module in init_data["modules"]: # идем по типам модулей
+    for j in range(module["quantity"]): # идем по каждому модулю каждого типа
+        for k in range(module["channels"]): # идем по каждому каналу каждого модуля
+            table_data["Модуль"][big_counter] = i+j+1
+            table_data["Номер канала в модуле"][big_counter] = k+1
+
+            counter = 0
+            reset = module["channels"]
+            for m in range(ticks): # идем по каждому такту
+                if counter >= reset or counter == 0:
+                    counter = 0
+                counter += 1
+            big_counter += 1
+    i += 1
+
+table = pd.DataFrame(table_data)
+
+
+# имплементация алгоритма с блок-схемы
 
 deltal = 1 # ??
 l = 0
@@ -71,14 +112,22 @@ while (True):
     if(newCycleFlag):
         n = 0
     deltal = T[j]
+
+    print(f'l={l}, deltal={deltal} ', sep=', ')
         
-    if (l + deltal) < ticks:
+    if (l + deltal) <= ticks:
         if (possibility_matrix[0]["TF"][l] == 0):
             for i in range(int(ticks / deltal)):
                 possibility_matrix[0]["TF"][l] = 1 # назначение j-сигнала на l-такт модуля
+
+                table.loc[(table['Номер канала в модуле'] == (possibility_matrix[0]["ktotal"] - possibility_matrix[0]["kfree"] + 1)) 
+                          & (table['Модуль'] == (possibility_matrix[0]["num"] + 1)), [f'Такт {l + 1}']] = 1
+
                 ##### штраф
                 l += deltal
-       
+
+            print(f'{possibility_matrix[0]["TF"]}, V={possibility_matrix[0]["V"]}')
+        
             possibility_matrix[0]["lfree"] -= ticks / deltal
             possibility_matrix[0]["kfree"] -= 1
             possibility_matrix[0]["V"] = possibility_matrix[0]["lfree"] / possibility_matrix[0]["ktotal"]
@@ -91,33 +140,27 @@ while (True):
             newCycleFlag = True
         else:
             l += 1
-            newCycleFlag = False
+            newCycleFlag = False # ???
     else:
         if n == 1:
-            print("Не вышло составить расписание")
+            print(f"Не вышло составить расписание для сигнала {j}")
             break
         else:
             l = 0
             n += 1
             newCycleFlag = False
 
+print(table)
 
 
 
 
-table_data = {"Номер канала": [x+1 for x in range(channels_total)],
-              "Номер канала в модуле": [0 for x in range(channels_total)],
-              "Модуль": [0 for x in range(channels_total)],
-              "Частота сигнала на канал": [fmax for x in range(channels_total)],
-              "Штраф": [0 for x in range(channels_total)]
-              }
 
-
+'''
 
 busy_table_data = {"Модуль/канал": ["" for x in range(channels_total)]}
 
 for i in range(ticks):
-    table_data[f'Такт {i+1}'] = [0 for x in range(channels_total)]
     busy_table_data[f'Такт {i+1}'] = [0 for x in range(channels_total)]
 
 # просто смерть, а не цикл. смотреть на свой страх и риск
@@ -125,8 +168,6 @@ big_counter = 0
 for module in init_data["modules"]: # идем по типам модулей
     for j in range(module["quantity"]): # идем по каждому модулю каждого типа
         for k in range(module["channels"]): # идем по каждому каналу каждого модуля
-            table_data["Модуль"][big_counter] = i+j+1
-            table_data["Номер канала в модуле"][big_counter] = k+1
 
             busy_table_data["Модуль/канал"][big_counter] = f"М{i+j+1}/К{k+1}"
 
@@ -139,9 +180,7 @@ for module in init_data["modules"]: # идем по типам модулей
                 counter += 1
             big_counter += 1
 
-
-table = pd.DataFrame(table_data)
 busy_table = pd.DataFrame(busy_table_data)
-# print(table)
 # print(busy_table)
 
+'''
