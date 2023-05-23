@@ -1,15 +1,14 @@
 import pandas as pd
-import numpy as np
 import json
 import sys
 from xlsxwriter.utility import xl_rowcol_to_cell
 
-# Heap Sort for possibility matrix
+# Пирамидальная сортировка (n log(n)) модулей
 def heapify(arr, n, i, param):
     if param == "V":
         smallest = i  # Initialize smallest as root
-        l = 2 * i + 1  # left = 2*i + 1
-        r = 2 * i + 2  # right = 2*i + 2
+        l = 2 * i + 1
+        r = 2 * i + 2
 
         if l < n and arr[smallest][param] > arr[l][param]:
             smallest = l
@@ -19,9 +18,9 @@ def heapify(arr, n, i, param):
             (arr[i], arr[smallest]) = (arr[smallest], arr[i])  # swap
             heapify(arr, n, smallest, param)
     else:
-        largest = i  # Initialize largest as root
-        l = 2 * i + 1  # left = 2*i + 1
-        r = 2 * i + 2  # right = 2*i + 2
+        largest = i
+        l = 2 * i + 1
+        r = 2 * i + 2
 
         if l < n and arr[largest][param] < arr[l][param]:
             largest = l
@@ -43,7 +42,7 @@ def heapSort(arr, param):
         (arr[i], arr[0]) = (arr[0], arr[i])  # swap
         heapify(arr, i, 0, param)
 
-
+# Функция составления расписания
 def schedule_solver(init_data, freq_koeff = 1):
     fmax = init_data["fmax"] * freq_koeff
     f = []
@@ -66,8 +65,7 @@ def schedule_solver(init_data, freq_koeff = 1):
 
     print(f'Количество тактов в кадре эксперимента: {ticks}')
 
-    # формирование матрицы потенциальных возможностей (МПВ)
-
+    # Формирование матрицы потенциальных возможностей (МПВ)
     sortparam = "V"
     sortparam = "kfree"
     possibility_matrix = []
@@ -89,10 +87,8 @@ def schedule_solver(init_data, freq_koeff = 1):
         channels_total += module["channels"] * module["quantity"]
 
     heapSort(possibility_matrix, sortparam) # сортировка МПВ
-    #possibility_matrix.sort(key=itemgetter('V', 'kfree'), reverse=True)
 
-    # создание таблицы расписания
-
+    # Создание таблицы расписания
     table_data = {"Номер канала": [x+1 for x in range(channels_total)],
                 "Номер канала в модуле": [0 for x in range(channels_total)],
                 "Модуль": [0 for x in range(channels_total)],
@@ -105,7 +101,7 @@ def schedule_solver(init_data, freq_koeff = 1):
     table_data["Штраф 1"] = [0 for x in range(channels_total)]
     table_data["Штраф 2"] = [0 for x in range(channels_total)]
 
-    # просто смерть, а не цикл. смотреть на свой страх и риск
+    # Просто смерть, а не цикл. Смотреть на свой страх и риск
     big_counter = 0
     i = 0
     for module in init_data["modules"]: # идем по типам модулей
@@ -119,30 +115,31 @@ def schedule_solver(init_data, freq_koeff = 1):
 
     table = pd.DataFrame(table_data)
 
-
-    # имплементация алгоритма с блок-схемы
-
+    # Имплементация алгоритма с блок-схемы = заполнение МПВ и таблицы расписания
     deltal = 1
     l = 0
     j = 0
     newCycleFlag = True
     success = False
     while (True):
+
         if (newCycleFlag):
             n = 0
             
         if (l + deltal) <= T[j]:
             if (possibility_matrix[0]["TF"][l] == 0 and possibility_matrix[0]["kfree"] != 0):
-                for i in range(int(ticks / T[j])):
+                for i in range(int(ticks / T[j])): # назначение j-сигнала на l-такт модуля
                     position = l + i * T[j]
-                    possibility_matrix[0]["TF"][position] = 1 # назначение j-сигнала на l-такт модуля
+                    possibility_matrix[0]["TF"][position] = 1
 
                     table.loc[(table['Номер канала в модуле'] == (possibility_matrix[0]["ktotal"] - possibility_matrix[0]["kfree"] + 1)) 
                             & (table['Модуль'] == (possibility_matrix[0]["num"] + 1)), [f'Такт {position + 1}']] = 1
-
+                
+                # Запись номера сигнала
                 table.loc[(table['Номер канала в модуле'] == (possibility_matrix[0]["ktotal"] - possibility_matrix[0]["kfree"] + 1)) 
                         & (table['Модуль'] == (possibility_matrix[0]["num"] + 1)), [f'Номер сигнала']] = j+1
                 
+                # Штраф
                 if j != 0:
                     p1 = [0 for x in range(ticks)]
                     p2 = [0 for x in range(ticks)]
@@ -168,12 +165,14 @@ def schedule_solver(init_data, freq_koeff = 1):
 
                 print(f'Сигнал {j+1} записан в модуль {possibility_matrix[0]["num"] + 1} канал {possibility_matrix[0]["ktotal"] - possibility_matrix[0]["kfree"] + 1}')
             
+                # Изменение параметров МПВ
                 possibility_matrix[0]["lfree"] -= ticks / T[j]
                 possibility_matrix[0]["kfree"] -= 1
                 possibility_matrix[0]["V"] = possibility_matrix[0]["lfree"] / possibility_matrix[0]["kfree"] if possibility_matrix[0]["kfree"] != 0 else 0
                 if possibility_matrix[0]["kfree"] == 0:
                     possibility_matrix[0]["kfree"] = sys.maxsize # да, если каналов ноль, то каналов 9223372036854775807, так работает программирование
 
+                # Пересортировка МПВ
                 heapSort(possibility_matrix, sortparam)
 
                 j += 1
@@ -196,21 +195,59 @@ def schedule_solver(init_data, freq_koeff = 1):
     
     return (success, table, ticks, channels_total)
 
+
+# Формат входных данных - JSON-файл
+# "signals" и "modules" - массивы JSON-объектов
+'''
+{
+    "fmax": максимальная частота сигналов,
+    "signals": [
+        {
+            "f": делитель частоты сигнала (фактическая частота сигналов - fmax/f),
+            "tau": параметр синхронизации сигнала,
+            "quantity": количество сигналов с данной частотой
+        },
+        {
+            "f": 32,
+            "tau": 0,
+            "quantity": 8
+        }],
+    "modules": [{
+            "channels": количество каналов,
+            "quantity": количество модулей с данным количеством каналов
+        },
+        {
+            "channels": 2,
+            "quantity": 2
+        },
+        {
+            "channels": 4,
+            "quantity": 3
+        },
+        {
+            "channels": 8,
+            "quantity": 2
+        }]
+}
+'''
+
+# Название файла со входными данными
 input_file = 'init_data.json'
 
 with open(input_file, encoding='utf-8') as json_file: # загрузка данных
     init_data = json.load(json_file)
 
+# Попытка составить расписание, в случае неудачи - увеличивание частоты опроса в 2 раза
 freq_koeff = 1
 success = False
 while success == False:
     (success, table, ticks, channels_total) = schedule_solver(init_data, freq_koeff)
     freq_koeff *= 2
 
-# отображение расписание
+# Отображение расписание в консоль
 print(table)
 
-# создание и форматирование эксель-файла
+# Создание и форматирование эксель-файла
 number_rows = len(table.index)
 writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
 table.to_excel(writer, index=False, sheet_name='report')
@@ -227,16 +264,12 @@ worksheet.conditional_format(1, 4, channels_total, 3+ticks, {'type': 'cell',
                                            'format': format1})
 
 for column in range(4, 6+ticks):
-    # Determine where we will place the formula
     cell_location = xl_rowcol_to_cell(number_rows+1, column)
-    # Get the range to use for the sum formula
     start_range = xl_rowcol_to_cell(1, column)
     end_range = xl_rowcol_to_cell(number_rows, column)
-    # Construct and write the formula
     formula = f'=SUM({start_range}:{end_range})'
     worksheet.write_formula(cell_location, formula, total_fmt)
 
-# Add a total label
 worksheet.write_string(number_rows+1, 3, "Штрафы", total_fmt)
 
 writer.save()
