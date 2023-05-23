@@ -1,0 +1,45 @@
+{
+    "fmax": 32000,
+    "signals": [
+        {
+            "f": 1,
+            "tau": 0,
+            "quantity": 1
+        },
+        {
+            "f": 2,
+            "tau": 0,
+            "quantity": 2
+        },
+        {
+            "f": 4,
+            "tau": 0,
+            "quantity": 4
+        },
+        {
+            "f": 8,
+            "tau": 0,
+            "quantity": 8
+        },
+        {
+            "f": 16,
+            "tau": 0,
+            "quantity": 16
+        }],
+    "modules": [{
+            "channels": 1,
+            "quantity": 1
+        },
+        {
+            "channels": 2,
+            "quantity": 1
+        },
+        {
+            "channels": 4,
+            "quantity": 1
+        },
+        {
+            "channels": 8,
+            "quantity": 3
+        }]
+}
