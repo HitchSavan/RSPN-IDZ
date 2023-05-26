@@ -231,45 +231,46 @@ def schedule_solver(init_data, freq_koeff = 1):
 }
 '''
 
-# Название файла со входными данными
-input_file = 'init_data.json'
+if __name__ == '__main__':
+    # Название файла со входными данными
+    input_file = 'init_data.json'
 
-with open(input_file, encoding='utf-8') as json_file: # загрузка данных
-    init_data = json.load(json_file)
+    with open(input_file, encoding='utf-8') as json_file: # загрузка данных
+        init_data = json.load(json_file)
 
-# Попытка составить расписание, в случае неудачи - увеличивание частоты опроса в 2 раза
-freq_koeff = 1
-success = False
-while success == False:
-    (success, table, ticks, channels_total) = schedule_solver(init_data, freq_koeff)
-    freq_koeff *= 2
+    # Попытка составить расписание, в случае неудачи - увеличивание частоты опроса в 2 раза
+    freq_koeff = 1
+    success = False
+    while success == False:
+        (success, table, ticks, channels_total) = schedule_solver(init_data, freq_koeff)
+        freq_koeff *= 2
 
-# Отображение расписание в консоль
-print(table)
+    # Отображение расписание в консоль
+    print(table)
 
-# Создание и форматирование эксель-файла
-number_rows = len(table.index)
-writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
-table.to_excel(writer, index=False, sheet_name='report')
+    # Создание и форматирование эксель-файла
+    number_rows = len(table.index)
+    writer = pd.ExcelWriter('output.xlsx', engine='xlsxwriter')
+    table.to_excel(writer, index=False, sheet_name='report')
 
-workbook = writer.book
-worksheet = writer.sheets['report']
+    workbook = writer.book
+    worksheet = writer.sheets['report']
 
-format1 = workbook.add_format({'bg_color': '#0FFC03'})
-total_fmt = workbook.add_format({'bold': True, 'bg_color': '#5789E6'})
+    format1 = workbook.add_format({'bg_color': '#0FFC03'})
+    total_fmt = workbook.add_format({'bold': True, 'bg_color': '#5789E6'})
 
-worksheet.conditional_format(1, 4, channels_total, 3+ticks, {'type': 'cell',
-                                           'criteria': '>',
-                                           'value': '0',
-                                           'format': format1})
+    worksheet.conditional_format(1, 4, channels_total, 3+ticks, {'type': 'cell',
+                                            'criteria': '>',
+                                            'value': '0',
+                                            'format': format1})
 
-for column in range(4, 6+ticks):
-    cell_location = xl_rowcol_to_cell(number_rows+1, column)
-    start_range = xl_rowcol_to_cell(1, column)
-    end_range = xl_rowcol_to_cell(number_rows, column)
-    formula = f'=SUM({start_range}:{end_range})'
-    worksheet.write_formula(cell_location, formula, total_fmt)
+    for column in range(4, 6+ticks):
+        cell_location = xl_rowcol_to_cell(number_rows+1, column)
+        start_range = xl_rowcol_to_cell(1, column)
+        end_range = xl_rowcol_to_cell(number_rows, column)
+        formula = f'=SUM({start_range}:{end_range})'
+        worksheet.write_formula(cell_location, formula, total_fmt)
 
-worksheet.write_string(number_rows+1, 3, "Штрафы", total_fmt)
+    worksheet.write_string(number_rows+1, 3, "Штрафы", total_fmt)
 
-writer.save()
+    writer.save()
