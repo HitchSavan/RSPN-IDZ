@@ -273,4 +273,4 @@ if __name__ == '__main__':
 
     worksheet.write_string(number_rows+1, 3, "Штрафы", total_fmt)
 
-    writer.save()
+    writer.close()
